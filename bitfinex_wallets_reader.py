@@ -4,19 +4,11 @@
 """
 Bitfinex Wallets Reader (.env 版本)
 ----------------------------------------
-此程式會呼叫 Bitfinex API `/v2/auth/r/wallets`
-以取得帳戶的錢包與餘額資訊。
+此模組可被其他 python 檔案 import：
+    from bitfinex_wallets_reader import get_wallets
 
-使用前請：
-1️⃣ 安裝套件：
-    pip install python-dotenv requests
-
-2️⃣ 在同資料夾下建立 `.env` 檔：
-    BFX_API_KEY=你的API_KEY
-    BFX_API_SECRET=你的API_SECRET
-
-3️⃣ 執行：
-    python3 bitfinex_wallets_reader.py
+會呼叫 Bitfinex API `/v2/auth/r/wallets`
+回傳錢包資料（list）
 """
 
 from datetime import datetime
@@ -27,21 +19,26 @@ import hashlib
 import requests
 from dotenv import load_dotenv
 
-# 載入 .env
+
+# ---------------------------------------------------------
+# 讀取 .env
+# ---------------------------------------------------------
 load_dotenv()
 
 API = "https://api.bitfinex.com/v2"
 
 API_KEY = os.getenv("BFX_API_KEY")
 API_SECRET = os.getenv("BFX_API_SECRET")
-print(API_KEY)
-print(API_SECRET)
 
 if not API_KEY or not API_SECRET:
     raise ValueError("❌ 無法讀取 API_KEY 或 API_SECRET，請確認 .env 檔內容")
 
+
+# ---------------------------------------------------------
+# 產生認證標頭
+# ---------------------------------------------------------
 def _build_authentication_headers(endpoint, payload=None):
-    nonce = str(round(datetime.now().timestamp() * 1_000))
+    nonce = str(round(datetime.now().timestamp() * 1000))
     message = f"/api/v2/{endpoint}{nonce}"
 
     if payload is not None:
@@ -59,25 +56,39 @@ def _build_authentication_headers(endpoint, payload=None):
         "bfx-signature": signature
     }
 
+
+# ---------------------------------------------------------
+# 主功能：取得錢包資料（給外部使用）
+# ---------------------------------------------------------
 def get_wallets():
+    """
+    呼叫 Bitfinex `/auth/r/wallets` API
+    並直接回傳 Python list
+    """
     endpoint = "auth/r/wallets"
-    payload = {}  # 此端點不需 payload
 
     headers = {
         "Content-Type": "application/json",
         **_build_authentication_headers(endpoint)
     }
 
-    print("💰 正在讀取 Bitfinex 錢包資訊 ...")
     response = requests.post(f"{API}/{endpoint}", headers=headers)
 
-    try:
-        data = response.json()
-        print("✅ 回應內容：")
-        print(json.dumps(data, indent=2))
-    except Exception as e:
-        print("⚠️ 無法解析伺服器回應:", e)
-        print(response.text)
+    if response.status_code != 200:
+        raise Exception(
+            f"❌ API 錯誤：{response.status_code}\n{response.text}"
+        )
 
+    try:
+        return response.json()
+    except:
+        raise Exception("❌ 無法解析 API JSON 回應")
+
+
+# ---------------------------------------------------------
+# 可以直接執行（測試用）
+# ---------------------------------------------------------
 if __name__ == "__main__":
-    get_wallets()
+    print("📡 取得 Bitfinex 錢包資料...\n")
+    wallets = get_wallets()
+    print(json.dumps(wallets, indent=2))

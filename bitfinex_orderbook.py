@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Bitfinex Order Book Reader
+取得訂單簿
 --------------------------
 官方文件：
 https://docs.bitfinex.com/reference/rest-public-book
