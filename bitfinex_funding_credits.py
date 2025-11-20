@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-https://docs.bitfinex.com/reference/rest-auth-info-funding
+https://docs.bitfinex.com/reference/rest-auth-funding-loans
+----------------------------------------
+放款查詢
 
-放貸資金的平均利率與時間
 
 """
 
@@ -49,8 +50,8 @@ def _build_authentication_headers(endpoint, payload=None):
     }
 
 def get_wallets():
-    #endpoint = "auth/r/info/funding/fUSD"
-    endpoint = "auth/r/info/funding/fUST"
+    # endpoint = "auth/r/funding/credits/fUST"
+    endpoint = "auth/r/funding/credits/fUSD"
 
     headers = {
         "Content-Type": "application/json",

@@ -2,14 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-https://docs.bitfinex.com/reference/rest-auth-info-funding
-
-放貸資金的平均利率與時間
-
+https://docs.bitfinex.com/reference/rest-auth-funding-loans-hist
 """
 
 from datetime import datetime
-import os
+import os,time
 import json
 import hmac
 import hashlib
@@ -49,16 +46,19 @@ def _build_authentication_headers(endpoint, payload=None):
     }
 
 def get_wallets():
-    #endpoint = "auth/r/info/funding/fUSD"
-    endpoint = "auth/r/info/funding/fUST"
+    endpoint = "auth/r/funding/loans/fUST/hist"
+
+    payload = {
+        "limit":50
+    } 
 
     headers = {
         "Content-Type": "application/json",
-        **_build_authentication_headers(endpoint)
+        **_build_authentication_headers(endpoint, payload)
     }
 
     print("💰 正在讀取 Bitfinex user資訊 ...")
-    response = requests.post(f"{API}/{endpoint}", headers=headers)
+    response = requests.post(f"{API}/{endpoint}", headers=headers, json=payload)
 
     try:
         data = response.json()

@@ -1,27 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# https://docs.bitfinex.com/reference/rest-auth-info-funding
 """
-Bitfinex Wallets Reader (.env 版本)
+https://docs.bitfinex.com/reference/rest-auth-funding-loans
 ----------------------------------------
-此程式會呼叫 Bitfinex API `/v2/auth/r/wallets`
-以取得帳戶的錢包與餘額資訊。
+放款查詢
 
-使用前請：
-1️⃣ 安裝套件：
-    pip install python-dotenv requests
 
-2️⃣ 在同資料夾下建立 `.env` 檔：
-    BFX_API_KEY=你的API_KEY
-    BFX_API_SECRET=你的API_SECRET
-
-3️⃣ 執行：
-    python3 bitfinex_wallets_reader.py
 """
 
 from datetime import datetime
-import os,time
+import os
 import json
 import hmac
 import hashlib
@@ -61,20 +50,16 @@ def _build_authentication_headers(endpoint, payload=None):
     }
 
 def get_wallets():
-    #endpoint = "auth/r/info/funding/fUSD"
-    endpoint = "auth/r/funding/offers/fUSD/hist"
-
-    payload = {
-        "limit":5
-    } 
+    endpoint = "auth/r/funding/loans/fUST"
+    # endpoint = "auth/r/funding/loans/fUSD"
 
     headers = {
         "Content-Type": "application/json",
-        **_build_authentication_headers(endpoint, payload)
+        **_build_authentication_headers(endpoint)
     }
 
     print("💰 正在讀取 Bitfinex user資訊 ...")
-    response = requests.post(f"{API}/{endpoint}", headers=headers, json=payload)
+    response = requests.post(f"{API}/{endpoint}", headers=headers)
 
     try:
         data = response.json()
