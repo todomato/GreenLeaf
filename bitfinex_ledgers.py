@@ -53,7 +53,7 @@ def get_wallets():
         "category":28,
         # 對照表 https://docs.bitfinex.com/reference/rest-auth-ledgers#ledger-entry-arrays
         "wallet": "funding",
-        "limit": 5
+        "limit": 25
     } 
 
     headers = {

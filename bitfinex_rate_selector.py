@@ -19,13 +19,15 @@ Bitfinex APR Selector
     best = find_max_apr(data)
 """
 
-def find_max_apr(data):
+def find_max_apr(data, max_days=None):
     """
-    傳入：list of lists
-    每筆格式：
-        item[4] = 年化率百分比
+    傳入：
+        data: list of lists
+        max_days: (int | None) 例如 30，表示只考慮 period <= 30 的資料
 
-    回傳：年化率最高的那筆 array
+    回傳：
+        年化率最高的那筆 array (符合 max_days 條件)
+        如果沒有符合條件則回傳 None
     """
     if not data or not isinstance(data, list):
         raise ValueError("❌ find_max_apr(data) 需要傳入非空的 list")
@@ -35,15 +37,21 @@ def find_max_apr(data):
 
     for item in data:
         if len(item) < 5:
-            continue  # 這筆沒有年化率欄位
-        
+            continue  # 沒有年化率欄位
+
+        period = item[1]
         apr = item[4]
+
+        # ✅ 如果有指定 max_days，就要過濾
+        if max_days is not None and period > max_days:
+            continue
 
         if apr > best_apr:
             best_apr = apr
             best_item = item
 
     return best_item
+
 
 
 # ---------------------------------------------------------

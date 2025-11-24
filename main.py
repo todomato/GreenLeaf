@@ -16,7 +16,7 @@ print(orderbook)
 
 # 檢查是否需要掛單，並取得相關參數
     # (金額 > $150 & 好的利率)
-best = find_max_apr(orderbook)
+best = find_max_apr(orderbook, 30)
 print("最高 APR：", best)
 
 # 執行掛單

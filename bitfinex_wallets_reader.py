@@ -84,6 +84,15 @@ def get_wallets():
     except:
         raise Exception("❌ 無法解析 API JSON 回應")
 
+# ---------------------------------------------------------
+# 主功能：取得餘額資料
+# ---------------------------------------------------------
+def get_funding_ust_values(data):
+    results = []
+    for item in data:
+        if item[0] == "funding" and item[1] == "UST":
+            results.append(item[4])
+    return results
 
 # ---------------------------------------------------------
 # 可以直接執行（測試用）
@@ -92,3 +101,7 @@ if __name__ == "__main__":
     print("📡 取得 Bitfinex 錢包資料...\n")
     wallets = get_wallets()
     print(json.dumps(wallets, indent=2))
+
+    print("📡 取得 Bitfinex 餘額資料...\n")
+    result = get_funding_ust_values(wallets)
+    print(result)   
