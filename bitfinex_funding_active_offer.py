@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# https://docs.bitfinex.com/reference/rest-auth-info-funding
 """
-Bitfinex Wallets Reader (.env 版本)
-----------------------------------------
-此程式會呼叫 Bitfinex API `/v2/auth/r/wallets`
-以取得帳戶的錢包與餘額資訊。
+Bitfinex Funding Offers Reader / Order Executor
+-----------------------------------------------
+可被其他 Python 檔案 import：
 
-使用前請：
-1️⃣ 安裝套件：
-    pip install python-dotenv requests
+from bitfinex_orders_api import get_funding_offers
 
-2️⃣ 在同資料夾下建立 `.env` 檔：
-    BFX_API_KEY=你的API_KEY
-    BFX_API_SECRET=你的API_SECRET
-
-3️⃣ 執行：
-    python3 bitfinex_wallets_reader.py
+功能：
+1️⃣ 取得 fUST funding offers
+2️⃣ 回傳 Python list
 """
 
 from datetime import datetime
@@ -28,21 +21,24 @@ import hashlib
 import requests
 from dotenv import load_dotenv
 
-# 載入 .env
+# ----------------------------
+# 載入環境變數
+# ----------------------------
 load_dotenv()
 
 API = "https://api.bitfinex.com/v2"
 
 API_KEY = os.getenv("BFX_API_KEY")
 API_SECRET = os.getenv("BFX_API_SECRET")
-print(API_KEY)
-print(API_SECRET)
 
 if not API_KEY or not API_SECRET:
     raise ValueError("❌ 無法讀取 API_KEY 或 API_SECRET，請確認 .env 檔內容")
 
+# ----------------------------
+# 產生認證標頭
+# ----------------------------
 def _build_authentication_headers(endpoint, payload=None):
-    nonce = str(round(datetime.now().timestamp() * 1_000))
+    nonce = str(round(datetime.now().timestamp() * 1000))
     message = f"/api/v2/{endpoint}{nonce}"
 
     if payload is not None:
@@ -60,8 +56,14 @@ def _build_authentication_headers(endpoint, payload=None):
         "bfx-signature": signature
     }
 
-def get_wallets():
-    #endpoint = "auth/r/info/funding/fUSD"
+# ----------------------------
+# 取得 funding offers
+# ----------------------------
+def get_funding_offers():
+    """
+    取得帳戶 fUST funding offers
+    回傳 Python list
+    """
     endpoint = "auth/r/funding/offers/fUST"
 
     headers = {
@@ -69,16 +71,56 @@ def get_wallets():
         **_build_authentication_headers(endpoint)
     }
 
-    print("💰 正在讀取 Bitfinex offer資訊 ...")
     response = requests.post(f"{API}/{endpoint}", headers=headers)
 
-    try:
-        data = response.json()
-        print("✅ 回應內容：")
-        print(json.dumps(data, indent=2))
-    except Exception as e:
-        print("⚠️ 無法解析伺服器回應:", e)
-        print(response.text)
+    if response.status_code != 200:
+        raise Exception(f"❌ API 錯誤：{response.status_code}\n{response.text}")
 
+    try:
+        return response.json()
+    except Exception as e:
+        raise Exception(f"❌ 無法解析 API JSON 回應: {e}")
+
+# ----------------------------
+# 可選：執行掛單
+# ----------------------------
+def submit_funding_order(amount, rate, period):
+    """
+    執行 fUST funding order
+    amount: float, 貸款數量
+    rate: float, 日利率
+    period: int, 借貸天數
+
+    回傳 API 回應
+    """
+    endpoint = "auth/w/order/submit"
+
+    payload = {
+        "type": "FUNDING OFFER",
+        "symbol": "fUST",
+        "amount": str(amount),
+        "rate": str(rate),
+        "period": period
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        **_build_authentication_headers(endpoint, payload)
+    }
+
+    response = requests.post(f"{API}/{endpoint}", json=payload, headers=headers)
+
+    if response.status_code != 200:
+        raise Exception(f"❌ API 錯誤：{response.status_code}\n{response.text}")
+
+    try:
+        return response.json()
+    except Exception as e:
+        raise Exception(f"❌ 無法解析 API JSON 回應: {e}")
+
+# ----------------------------
+# 測試用
+# ----------------------------
 if __name__ == "__main__":
-    get_wallets()
+    offers = get_funding_offers()
+    print(json.dumps(offers, indent=2))
