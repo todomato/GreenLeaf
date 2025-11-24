@@ -2,6 +2,7 @@ from bitfinex_wallets_reader import get_wallets
 from bitfinex_wallets_reader import get_funding_ust_values
 from bitfinex_orderbook import get_orderbook
 from bitfinex_rate_selector import find_max_apr
+from bitfinex_funding_submit_offer import submit_funding_order
 
 # 流程1
 
@@ -35,11 +36,17 @@ print("最高 APR：", bestRate)
 # -----------------------------
 if current_balance > 150 and bestRate:
     print("✅ 執行掛單")
-    # 可抓取掛單參數
-    # daily_rate = bestRate[0]
-    # period = bestRate[1]
-    # amount = current_balance
-    # price = ...  # 如果需要可以再計算或設定
+
+    # TODO 批次掛單
+
+    api_result = submit_funding_order(amount=current_balance, rate=bestRate[0], period=bestRate[1])
+    # 擷取狀態與描述
+    status = api_result[6]      # "SUCCESS"
+    description = api_result[7]  # "Submitting funding offer of ..."
+
+    print("狀態:", status)
+    print("說明:", description)
+
 else:
     print("⚠️ 不符合掛單條件")
 

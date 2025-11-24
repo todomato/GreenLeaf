@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-https://docs.bitfinex.com/reference/rest-auth-funding-loans
-----------------------------------------
-放款查詢
-
-
+Bitfinex Funding Credits API (callable version)
+https://docs.bitfinex.com/reference/rest-auth-funding-credits
+------------------------------------------------------------
+外部可呼叫，用於取得變動利率放貸訂單
 """
 
 from datetime import datetime
@@ -24,23 +23,25 @@ API = "https://api.bitfinex.com/v2"
 
 API_KEY = os.getenv("BFX_API_KEY")
 API_SECRET = os.getenv("BFX_API_SECRET")
-print(API_KEY)
-print(API_SECRET)
 
 if not API_KEY or not API_SECRET:
-    raise ValueError("❌ 無法讀取 API_KEY 或 API_SECRET，請確認 .env 檔內容")
+    raise ValueError("❌ 沒找到 API_KEY / API_SECRET，請確認 .env 是否正確設定")
 
-def _build_authentication_headers(endpoint, payload=None):
-    nonce = str(round(datetime.now().timestamp() * 1_000))
+
+# -------------------------------------------------
+# 建立簽章 headers
+# -------------------------------------------------
+def _build_auth_headers(endpoint, payload=None):
+    nonce = str(round(datetime.now().timestamp() * 1000))
     message = f"/api/v2/{endpoint}{nonce}"
 
     if payload is not None:
         message += json.dumps(payload)
 
     signature = hmac.new(
-        key=API_SECRET.encode("utf8"),
-        msg=message.encode("utf8"),
-        digestmod=hashlib.sha384
+        API_SECRET.encode("utf8"),
+        message.encode("utf8"),
+        hashlib.sha384
     ).hexdigest()
 
     return {
@@ -49,25 +50,73 @@ def _build_authentication_headers(endpoint, payload=None):
         "bfx-signature": signature
     }
 
-def get_wallets():
-    # endpoint = "auth/r/funding/credits/fUST"
-    endpoint = "auth/r/funding/credits/fUSD"
+
+# -------------------------------------------------
+# ✅ 外部可呼叫的 API function
+# -------------------------------------------------
+def get_funding_credits(symbol="fUSD", raw=False):
+    """
+    取得變動利率 funding credits 訂單
+
+    參數:
+        symbol (str): e.g., "fUSD", "fUST"
+        raw (bool): 如果想取得原始 API JSON，設 True
+
+    回傳:
+        list of dicts:
+        [
+            {
+                "id": int,
+                "symbol": str,
+                "amount": float,
+                "rate": float,
+                "period": int,
+                "status": str
+            }
+        ]
+    """
+
+    endpoint = f"auth/r/funding/credits/{symbol}"
 
     headers = {
         "Content-Type": "application/json",
-        **_build_authentication_headers(endpoint)
+        **_build_auth_headers(endpoint)
     }
 
-    print("💰 正在讀取 Bitfinex user資訊 ...")
     response = requests.post(f"{API}/{endpoint}", headers=headers)
 
-    try:
-        data = response.json()
-        print("✅ 回應內容：")
-        print(json.dumps(data, indent=2))
-    except Exception as e:
-        print("⚠️ 無法解析伺服器回應:", e)
-        print(response.text)
+    if response.status_code != 200:
+        raise Exception(f"❌ API error: {response.status_code}\n{response.text}")
 
+    data = response.json()
+
+    if raw:
+        return data  # 原始回傳
+
+    results = []
+    for row in data:
+        results.append({
+            "id": row[0],
+            "symbol": row[1],
+            "amount": row[5],
+            "rate": row[15],   # 日利率 (小數)
+            "period": row[16], # 天數
+            "status": row[10]
+        })
+
+    return {
+        "count": len(results),
+        "items": results
+    }
+
+
+# -------------------------------------------------
+# 測試用：只有直接執行才會跑
+# -------------------------------------------------
 if __name__ == "__main__":
-    get_wallets()
+    print("📡 測試取得 fUSD funding credits ...\n")
+    resp = get_funding_credits("fUST")
+    print("總筆數:", resp["count"])
+    print(json.dumps(resp["items"], indent=2, ensure_ascii=False))
+
+    
