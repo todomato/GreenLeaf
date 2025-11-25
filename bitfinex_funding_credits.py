@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Bitfinex Funding Credits API (callable version)
-https://docs.bitfinex.com/reference/rest-auth-funding-credits
-------------------------------------------------------------
-外部可呼叫，用於取得變動利率放貸訂單
-"""
-
 from datetime import datetime
 import os
 import json
@@ -28,9 +18,6 @@ if not API_KEY or not API_SECRET:
     raise ValueError("❌ 沒找到 API_KEY / API_SECRET，請確認 .env 是否正確設定")
 
 
-# -------------------------------------------------
-# 建立簽章 headers
-# -------------------------------------------------
 def _build_auth_headers(endpoint, payload=None):
     nonce = str(round(datetime.now().timestamp() * 1000))
     message = f"/api/v2/{endpoint}{nonce}"
@@ -51,62 +38,51 @@ def _build_auth_headers(endpoint, payload=None):
     }
 
 
-# -------------------------------------------------
-# ✅ 外部可呼叫的 API function
-# -------------------------------------------------
 def get_funding_credits(symbol="fUSD", raw=False):
-    """
-    取得變動利率 funding credits 訂單
-
-    參數:
-        symbol (str): e.g., "fUSD", "fUST"
-        raw (bool): 如果想取得原始 API JSON，設 True
-
-    回傳:
-        list of dicts:
-        [
-            {
-                "id": int,
-                "symbol": str,
-                "amount": float,
-                "rate": float,
-                "period": int,
-                "status": str
-            }
-        ]
-    """
 
     endpoint = f"auth/r/funding/credits/{symbol}"
-
-    headers = {
-        "Content-Type": "application/json",
-        **_build_auth_headers(endpoint)
-    }
-
+    headers = {"Content-Type": "application/json", **_build_auth_headers(endpoint)}
     response = requests.post(f"{API}/{endpoint}", headers=headers)
 
     if response.status_code != 200:
         raise Exception(f"❌ API error: {response.status_code}\n{response.text}")
 
     data = response.json()
-
     if raw:
-        return data  # 原始回傳
+        return data
 
     results = []
+    now_ms = int(datetime.now().timestamp() * 1000)
+
     for row in data:
-        # 安全提取避免 index 錯誤
         daily_rate = row[11] if len(row) > 11 and row[11] is not None else 0
-        period = row[12] if len(row) > 12 else None
+        period = row[12] if len(row) > 12 else None   # days
+        create_ts = row[3] if len(row) > 3 else None  # creation time (ms)
+
+        # -----------------------------
+        # ✅ 計算剩餘天數
+        # -----------------------------
+        if create_ts and period:
+            elapsed_days = (now_ms - create_ts) / 1000 / 86400
+            remaining_days = period - elapsed_days
+
+            if remaining_days > 0:
+                remain_str = f"{int(remaining_days)}天"
+            else:
+                remain_str = "已到期"
+        else:
+            remain_str = None
 
         results.append({
             "id": row[0],
             "symbol": row[1],
             "amount": row[5],
             "rate": daily_rate,
-            "rate_annual": round(daily_rate * 365 * 100, 4),  # % 年化
+            "rate_annual": round(daily_rate * 365 * 100, 4),
             "period": period,
-            "status": row[10] if len(row) > 10 else None
+            "status": row[10] if len(row) > 10 else None,
+            "created_timestamp": create_ts,
+            "remaining_time": remain_str  # ⭐ 只顯示天數
         })
 
     return {
@@ -115,14 +91,7 @@ def get_funding_credits(symbol="fUSD", raw=False):
     }
 
 
-# -------------------------------------------------
-# 測試用：只有直接執行才會跑
-# -------------------------------------------------
+# 測試
 if __name__ == "__main__":
-    print("📡 測試取得 fUSD funding credits ...\n")
-    resp = get_funding_credits("fUST", True)
-    print( json.dumps(resp, indent=2, ensure_ascii=False))
-    # print("總筆數:", resp["count"])
-    # print(json.dumps(resp["items"], indent=2, ensure_ascii=False))
-
-    
+    resp = get_funding_credits("fUST")
+    print(json.dumps(resp, indent=2, ensure_ascii=False))

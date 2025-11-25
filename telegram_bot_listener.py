@@ -8,6 +8,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from bitfinex_wallets_reader import get_wallets, get_funding_ust_values
 from bitfinex_funding_credits import get_funding_credits
 from bitfinex_funding_loan import get_funding_loans
+from bitfinex_state import get_frr_history
 
 TELEGRAM_TOKEN = os.getenv("TG_BOT_TOKEN")
 
@@ -49,6 +50,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             credits = get_funding_credits("fUST")
             loans = get_funding_loans("fUST")
+            frr = get_frr_history("fUST")
 
             msg = (
                 "📌 **fUST 放貸狀況**\n\n"
@@ -59,11 +61,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # 加入明細（可依需求調整）
             msg += "📍 變動利率明細：\n"
             for c in credits["items"]:
-                msg += f"- {c['amount']} UST @ {c['rate']}% 年化\n"
+                msg += f"- {c['amount']} UST @ {frr['daily_frr_percent']}% , 年化: {frr['annual_frr_percent']}% / {c['remaining_time']} \n"
 
             msg += "\n📍 固定利率明細：\n"
             for l in loans["items"]:
-                msg += f"- {l['amount']} UST @ {l['rate']}% 年化 / {l['period']}天\n"
+                rate = l["rate"]
+                annual = round(rate * 365, 3)   # 年化報酬率 = rate × 365
+
+                msg += (
+                    f"- {l['amount']} UST @ {rate}%, 年化:{annual}% / "
+                    f"{l['remaining_time']}\n"
+                )
 
             await update.message.reply_text(msg)
 

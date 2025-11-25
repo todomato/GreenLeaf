@@ -4,7 +4,7 @@
 """
 Bitfinex Funding Loans API Wrapper
 ----------------------------------------
-取得 **已確認借出的固定利率放貸訂單**
+取得 **已確認借出的固定利率放貸訂單**，包含剩餘天數
 
 Docs:
 https://docs.bitfinex.com/reference/rest-auth-funding-loans
@@ -50,7 +50,6 @@ def _build_auth_headers(endpoint, payload=None):
 def get_funding_loans(symbol="fUST", raw=False):
     """
     ✅ 取得固定利率 funding loans
-
     回傳格式：
     {
         "count": int,
@@ -62,7 +61,8 @@ def get_funding_loans(symbol="fUST", raw=False):
                 "rate_daily": ...,
                 "rate_annual": ...,
                 "period": ...,
-                "status": ...
+                "status": ...,
+                "remaining_time": "X 天"
             }
         ]
     }
@@ -89,19 +89,36 @@ def get_funding_loans(symbol="fUST", raw=False):
         }
 
     results = []
+    now_ms = int(datetime.now().timestamp() * 1000)
+
     for row in data:
-        # 安全提取避免 index 錯誤
         daily_rate = row[11] if len(row) > 11 and row[11] is not None else 0
         period = row[12] if len(row) > 12 else None
+        create_ts = row[3] if len(row) > 3 else None
+
+        # -----------------------------
+        # 計算剩餘天數
+        # -----------------------------
+        if create_ts and period:
+            elapsed_days = (now_ms - create_ts) / 1000 / 86400
+            remaining_days = period - elapsed_days
+            if remaining_days > 0:
+                remain_str = f"{int(remaining_days)}天"
+            else:
+                remain_str = "已到期"
+        else:
+            remain_str = None
 
         results.append({
             "id": row[0],
             "symbol": row[1],
             "amount": row[5],
             "rate": daily_rate,
-            "rate_annual": round(daily_rate * 365 * 100, 4),  # % 年化
+            "rate_annual": round(daily_rate * 365 * 100, 4),
             "period": period,
-            "status": row[10] if len(row) > 10 else None
+            "status": row[10] if len(row) > 10 else None,
+            "created_timestamp": create_ts,
+            "remaining_time": remain_str
         })
 
     return {
