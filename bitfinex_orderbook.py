@@ -8,10 +8,7 @@
 https://docs.bitfinex.com/reference/rest-public-book
 
 此檔案拆成可供 import 的模組：
-    from bitfinex_orderbook import get_orderbook
-
-function get_orderbook(symbol, precision, length)
-會回傳整理後的 orderbook 資料（已去重 + 保留日利率 + 年化欄位）
+    from bitfinex_orderbook import get_orderbook, get_top5_rates
 """
 
 import requests
@@ -72,29 +69,57 @@ def get_orderbook(symbol="fUST", precision="P1", length=25):
     呼叫 Bitfinex Orderbook + 自動整理資料
     回傳 Python list
     """
-
     endpoint = f"book/{symbol}/{precision}?len={length}"
     url = f"{API}/{endpoint}"
 
     response = requests.get(url)
-
     if response.status_code != 200:
         raise Exception(f"API 錯誤：{response.status_code} - {response.text}")
 
     raw = response.json()
     processed = process_data(raw, unique_idx=1, rate_idx=0)
-
     return processed   # ← 給 main.py 用
 
 
 # ---------------------------------------------------------
-# 可直接執行
+# 新增函式：取得前五筆利率最高
+# ---------------------------------------------------------
+
+def get_top5_rates(orderbook):
+    """
+    從整理過的 orderbook 取得前五筆年化利率最高的資料
+    回傳 list of dict:
+        {
+            "annual_rate_percent": ...,
+            "period": ...,
+            "amount": ...
+        }
+    """
+    # 排序：按年化利率降序
+    sorted_data = sorted(orderbook, key=lambda x: x[4], reverse=True)
+    top5 = sorted_data[:5]
+
+    # 提取需要欄位
+    result = []
+    for item in top5:
+        result.append({
+            "annual_rate_percent": item[4],
+            "period": item[1],
+            "amount": round(abs(item[3]))
+        })
+    return result
+
+
+# ---------------------------------------------------------
+# 可直接執行測試
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
     print("📡 測試取得 Bitfinex Orderbook ...")
-
     data = get_orderbook("fUST", "P1", 25)
-
     print("📊 整理後 Orderbook：")
     print(json.dumps(data, indent=2))
+
+    print("\n🔥 前五筆利率最高：")
+    top5 = get_top5_rates(data)
+    print(json.dumps(top5, indent=2))
