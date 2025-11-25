@@ -95,13 +95,18 @@ def get_funding_credits(symbol="fUSD", raw=False):
 
     results = []
     for row in data:
+        # 安全提取避免 index 錯誤
+        daily_rate = row[11] if len(row) > 11 and row[11] is not None else 0
+        period = row[12] if len(row) > 12 else None
+
         results.append({
             "id": row[0],
             "symbol": row[1],
             "amount": row[5],
-            "rate": row[15],   # 日利率 (小數)
-            "period": row[16], # 天數
-            "status": row[10]
+            "rate": daily_rate,
+            "rate_annual": round(daily_rate * 365 * 100, 4),  # % 年化
+            "period": period,
+            "status": row[10] if len(row) > 10 else None
         })
 
     return {
@@ -115,8 +120,9 @@ def get_funding_credits(symbol="fUSD", raw=False):
 # -------------------------------------------------
 if __name__ == "__main__":
     print("📡 測試取得 fUSD funding credits ...\n")
-    resp = get_funding_credits("fUST")
-    print("總筆數:", resp["count"])
-    print(json.dumps(resp["items"], indent=2, ensure_ascii=False))
+    resp = get_funding_credits("fUST", True)
+    print( json.dumps(resp, indent=2, ensure_ascii=False))
+    # print("總筆數:", resp["count"])
+    # print(json.dumps(resp["items"], indent=2, ensure_ascii=False))
 
     

@@ -91,14 +91,14 @@ def get_funding_loans(symbol="fUST", raw=False):
     results = []
     for row in data:
         # 安全提取避免 index 錯誤
-        daily_rate = row[14] if len(row) > 14 and row[14] is not None else 0
-        period = row[15] if len(row) > 15 else None
+        daily_rate = row[11] if len(row) > 11 and row[11] is not None else 0
+        period = row[12] if len(row) > 12 else None
 
         results.append({
             "id": row[0],
             "symbol": row[1],
             "amount": row[5],
-            "rate_daily": daily_rate,
+            "rate": daily_rate,
             "rate_annual": round(daily_rate * 365 * 100, 4),  # % 年化
             "period": period,
             "status": row[10] if len(row) > 10 else None

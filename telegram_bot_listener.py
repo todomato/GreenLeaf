@@ -6,6 +6,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 from bitfinex_wallets_reader import get_wallets, get_funding_ust_values
+from bitfinex_funding_credits import get_funding_credits
+from bitfinex_funding_loan import get_funding_loans
 
 TELEGRAM_TOKEN = os.getenv("TG_BOT_TOKEN")
 
@@ -14,12 +16,17 @@ if not TELEGRAM_TOKEN:
 
 # ✅ /start 指令
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Bot 已啟動，有什麼需要嗎？輸入：查詢餘額")
+    await update.message.reply_text(
+        "✅ Bot 已啟動，可輸入：\n"
+        "📌 查詢餘額\n"
+        "📌 查詢放貸"
+    )
 
 # ✅ 處理一般文字訊息
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
+    # ✅ 查詢餘額
     if text == "查詢餘額":
         await update.message.reply_text("📡 正在查詢 Bitfinex 餘額...")
 
@@ -30,13 +37,46 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not values:
                 await update.message.reply_text("❗ 沒找到 UST funding 餘額")
             else:
-                await update.message.reply_text(f"✅ 目前餘額：{values}")
+                await update.message.reply_text(f"✅ 目前餘額：{values[0]}")
 
         except Exception as e:
             await update.message.reply_text(f"❌ API 錯誤：\n{e}")
 
+    # ✅ ✅ 新增「查詢放貸」
+    elif text == "查詢放貸":
+        await update.message.reply_text("📡 正在查詢放貸中，請稍候...")
+
+        try:
+            credits = get_funding_credits("fUST")
+            loans = get_funding_loans("fUST")
+
+            msg = (
+                "📌 **fUST 放貸狀況**\n\n"
+                f"🔹 變動利率：{credits['count']} 筆\n"
+                f"🔸 固定利率：{loans['count']} 筆\n\n"
+            )
+
+            # 加入明細（可依需求調整）
+            msg += "📍 變動利率明細：\n"
+            for c in credits["items"]:
+                msg += f"- {c['amount']} UST @ {c['rate']}% 年化\n"
+
+            msg += "\n📍 固定利率明細：\n"
+            for l in loans["items"]:
+                msg += f"- {l['amount']} UST @ {l['rate']}% 年化 / {l['period']}天\n"
+
+            await update.message.reply_text(msg)
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ 查詢失敗：\n{e}")
+
+    # ✅ 其他文字
     else:
-        await update.message.reply_text("🤖 我聽不懂，可以輸入：查詢餘額")
+        await update.message.reply_text(
+            "🤖 我聽不懂，可以輸入：\n"
+            "📌 查詢餘額\n"
+            "📌 查詢放貸"
+        )
 
 # ✅ 主程式
 def main():
